@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload and Download</title>
+    <script>
+        // Function to upload a file
+        async function uploadFile(event) {
+            event.preventDefault(); // Prevent form submission
+            
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert("Please select a file to upload.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onloadend = async function() {
+                const base64data = reader.result.split(',')[1]; // Get base64 part only
+                const fileName = file.name;
+                const apiUrl = 'https://7gcvjf2tz5.execute-api.us-east-1.amazonaws.com/dev/files'; // Update to point to your API Gateway for uploads
+                
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            filename: fileName,
+                            file: base64data // The content to upload
+                        })
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        alert(`File uploaded successfully: ${result.fileKey}`);
+                    } else {
+                        const error = await response.json();
+                        alert(`Error: ${error.error}`);
+                    }
+                } catch (error) {
+                    alert('An error occurred while uploading the file.');
+                }
+            };
+
+            reader.readAsDataURL(file); // Read the file as a Data URL
+        }
+
+        // Function to download a file
+        async function downloadFile() {
+            const fileName = document.getElementById('downloadFileName').value;
+
+            if (!fileName) {
+                alert("Please enter a filename to download.");
+                return;
+            }
+
+            const apiUrl = `https://7gcvjf2tz5.execute-api.us-east-1.amazonaws.com/dev/files?fileName=${encodeURIComponent(fileName)}`; // Update to point to your API Gateway for downloads
+
+            try {
+                const response = await fetch(apiUrl);
+                
+                if (response.ok) {
+                    const blob = await response.blob(); // Get the response as a Blob
+                    const url = window.URL.createObjectURL(blob); // Create a URL for the blob
+
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = fileName; // Set the filename for downloading
+                    document.body.appendChild(a);
+                    a.click(); // Trigger the download
+                    window.URL.revokeObjectURL(url); // Clean up the URL object
+                    alert("File downloaded successfully!");
+                } else {
+                    const error = await response.json();
+                    alert(`Error: ${error.error}`);
+                }
+            } catch (error) {
+                alert('An error occurred while downloading the file.');
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>File Upload and Download</h1>
+
+    <h2>Upload File</h2>
+    <form onsubmit="uploadFile(event)">
+        <input type="file" id="fileInput" required />
+        <button type="submit">Upload</button>
+    </form>
+
+    <h2>Download File</h2>
+    <input type="text" id="downloadFileName" placeholder="Enter filename to download" required />
+    <button onclick="downloadFile()">Download</button>
+</body>
+</html>
